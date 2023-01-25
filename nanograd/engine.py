@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
-class value:
-    """Stores a single scalar value and its gradient"""
+class Value:
+    """Stores a single scalar Value and its gradient"""
     def __init__(self, data, child=(), op=''):
         self.data = data
         self.grad = 0
@@ -13,11 +13,11 @@ class value:
         self._backward = lambda: None
     
     def __repr__ (self):
-        return f"value(data={self.data}, grad={self.grad})"
+        return f"Value(data={self.data}, grad={self.grad})"
     
     def __add__ (self, other):
-        other = other if isinstance(other, value) else value(other)
-        res = value (self.data + other.data, (self, other), "+")
+        other = other if isinstance(other, Value) else Value(other)
+        res = Value (self.data + other.data, (self, other), "+")
         def _backward ():
             self.grad += res.grad
             other.grad += res.grad
@@ -28,8 +28,8 @@ class value:
         return self + other
     
     def __mul__ (self, other):
-        other = other if isinstance(other, value) else value(other)
-        res = value (self.data * other.data, (self, other), "*")
+        other = other if isinstance(other, Value) else Value(other)
+        res = Value (self.data * other.data, (self, other), "*")
         def _backward ():
             self.grad += res.grad * other.data
             other.grad += res.grad * self.data
@@ -40,8 +40,8 @@ class value:
         return self * other
 
     def __pow__ (self, other):
-        assert isinstance(other, (float, int)), "Only floating point and integers values are supported for now"
-        res = value (self.data ** other, (self,), f"**{other}")
+        assert isinstance(other, (float, int)), "Only floating point and integers Values are supported for now"
+        res = Value (self.data ** other, (self,), f"**{other}")
         def _backward ():
             self.grad += (other * self.data ** (other - 1)) * res.grad
         res._backward = _backward
@@ -63,7 +63,7 @@ class value:
         return other / self
     
     def relu(self):
-        res = value(0 if self.data < 0 else self.data, (self,), "ReLU")
+        res = Value(0 if self.data < 0 else self.data, (self,), "ReLU")
         def _backward():
             self.grad += (res.data > 0) * res.grad
         res._backward = _backward

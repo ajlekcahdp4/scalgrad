@@ -1,5 +1,5 @@
 import random
-from engine import value
+from nanograd.engine import Value
 
 class Module:
     
@@ -13,8 +13,8 @@ class Module:
 class Neuron(Module):
 
     def __init__(self, nin, nonlin=True):
-        self.weights = [value(random.uniform(-1, 1)) for _ in range(nin)]
-        self.base = value(random.uniform(-5, 5))
+        self.weights = [Value(random.uniform(-1, 1)) for _ in range(nin)]
+        self.base = Value(random.uniform(-5, 5))
         self.nonlin = nonlin
     
     def __call__ (self, x):
