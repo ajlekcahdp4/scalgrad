@@ -1,5 +1,5 @@
 import random
-from nanograd.engine import value
+from engine import value
 
 class Module:
     
@@ -13,12 +13,12 @@ class Module:
 class Neuron(Module):
 
     def __init__(self, nin, nonlin=True):
-        self.weights = [value(random.uniform(-1, 1)) for _ in ranfe(nin)]
+        self.weights = [value(random.uniform(-1, 1)) for _ in range(nin)]
         self.base = value(random.uniform(-5, 5))
         self.nonlin = nonlin
     
     def __call__ (self, x):
-        act = sum((wi, xi for wi, xi in zip(self.weights, x)), self.base)
+        act = sum((wi * xi for wi,xi in zip(self.weights, x)), self.base)
         return act.relu() if self.nonlin else act
     
     def parameters (self):
