@@ -26,7 +26,7 @@ private:
 
   std::function<void()> backward = [&]() {};
 
-  std::list<std::shared_ptr<value<value_type>>> childs;
+  std::vector<std::shared_ptr<value<value_type>>> childs{};
 
 public:
   value(value_type val, std::set<pointer> prevs = {})
@@ -64,18 +64,18 @@ public:
     return res;
   }
 
+  // value<value_type> operator-=(value<value_type> &other) {}
+
   value<value_type> operator-() {
-    auto tmp = std::make_shared<value<value_type>>(-1);
-    childs.emplace_back(std::move(tmp));
-    auto &neg_one = *childs.back();
-    return *this * neg_one;
+    auto neg_one = std::make_shared<value<value_type>>(-1);
+    childs.push_back(neg_one);
+    return *this * *neg_one;
   }
 
   value<value_type> operator-(value<value_type> &other) {
-    auto tmp = std::make_shared<value<value_type>>(-other);
-    childs.emplace_back(std::move(tmp));
-    auto &neg_other = *childs.back();
-    return *this + neg_other;
+    auto neg_other = std::make_shared<value<value_type>>(-other);
+    childs.push_back(neg_other);
+    return *this + *neg_other;
   }
 
   std::list<pointer> topological_sort() {
