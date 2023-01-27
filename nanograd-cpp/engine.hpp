@@ -29,7 +29,8 @@ private:
   std::list<std::shared_ptr<value<value_type>>> childs;
 
 public:
-  value(value_type val, std::set<pointer> = {}) : data{val} {}
+  value(value_type val, std::set<pointer> prevs = {})
+      : data{val}, prev{prevs} {}
 
   virtual ~value() {}
 
