@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <cmath>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <list>
@@ -64,8 +66,6 @@ public:
     return res;
   }
 
-  // value<value_type> operator-=(value<value_type> &other) {}
-
   value<value_type> operator-() {
     auto neg_one = std::make_shared<value<value_type>>(-1);
     childs.push_back(neg_one);
@@ -98,6 +98,42 @@ public:
       auto &cur = *it;
       cur->backward();
     }
+  }
+
+private:
+  auto trace() {
+    std::set<pointer> nodes{};
+    std::set<std::pair<pointer, pointer>> edges{};
+    std::function<void(pointer)> build = [&](pointer cur) {
+      if (nodes.find(cur) == nodes.end()) {
+        nodes.insert(cur);
+        for (auto kid : cur->prev) {
+          edges.insert({kid, cur});
+          build(kid);
+        }
+      }
+    };
+    build(this);
+    return std::pair{nodes, edges};
+  }
+
+public:
+  void draw_dot(std::string filename) {
+    std::fstream fs{filename};
+    assert(fs.is_open());
+    auto [nodes, edges] = trace();
+    fs << "digraph G {\n"
+       << "rankdir=LR\n";
+    for (auto n : nodes) {
+      fs << "node" << n << " [shape=record, label=\" data = " << n->data
+         << " | grad = " << n->grad << " \"];\n";
+    }
+
+    for (auto [fst, snd] : edges) {
+      fs << "node" << fst << "-> node" << snd << "\n;";
+    }
+    fs << "}\n";
+    fs.close();
   }
 };
 
