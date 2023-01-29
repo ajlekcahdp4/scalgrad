@@ -20,7 +20,7 @@ public:
 
   value_type data{};
   value_type grad{};
-  std::function<void()> backward = nullptr;
+  std::function<void()> backward = []() {};
 
 private:
   using self = scalar<value_type>;
