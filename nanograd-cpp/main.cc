@@ -1,11 +1,14 @@
 #include "engine.hpp"
+// #include "nn.hpp"
 
 #include <iostream>
 
 int main() {
-  red_engine::value<double> a(1.0);
-  red_engine::value<double> b(2.0);
+  auto a = red_engine::scalar<double>::create(1.0);
+  auto b = red_engine::scalar<double>::create(2.0);
+  auto nb = -b;
   auto c = a - b;
-  c.backprop();
-  std::cout << c << a << b << "\n";
+  c->draw_dot("gout.dot");
+  c->backprop();
+  std::cout << "a = " << a << "\nb = " << b << "\nc = a - b = " << c;
 }

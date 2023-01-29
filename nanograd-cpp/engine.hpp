@@ -14,79 +14,68 @@
 
 namespace red_engine {
 
-template <typename T> class value {
+template <typename T> class scalar {
 public:
   using value_type = T;
 
   value_type data{};
   value_type grad{};
+  std::function<void()> backward = nullptr;
 
 private:
-  using pointer = value *;
+  using self = scalar<value_type>;
+  using pointer = typename std::shared_ptr<scalar>;
 
   std::set<pointer> prev;
+  std::string op = "";
 
-  std::function<void()> backward = [&]() {};
-
-  std::vector<std::shared_ptr<value<value_type>>> childs{};
+  scalar(value_type val, std::set<pointer> prevs = {}, std::string oper = "")
+      : data{val}, prev{prevs}, op{oper} {}
 
 public:
-  value(value_type val, std::set<pointer> prevs = {})
-      : data{val}, prev{prevs} {}
+  template <typename... Args> static pointer create(Args &&...args) {
+    auto raw_ptr = new scalar{(std::forward<Args>(args))...};
+    return pointer(raw_ptr);
+  }
 
-  virtual ~value() {}
+  virtual ~scalar() {}
 
   std::string str() const {
     std::stringstream ss;
-    ss << "value of (data = " << data << ", grad = " << grad << ")";
+    ss << "scalar of (data = " << data << ", grad = " << grad << ")";
     return ss.str();
   }
 
-  value<value_type> operator+(value<value_type> &other) {
-    auto res = value<value_type>{data + other.data, {this, &other}};
-    res.backward = [&]() {
-      grad += res.grad;
-      other.grad += res.grad;
+  pointer pow(double n) {
+    std::stringstream opss;
+    opss << "pow " << n;
+    auto this_ptr = create(*this);
+    auto res = create(pow(data, n), {this_ptr}, opss.str());
+    res->backward = [res, this_ptr, n]() {
+      this_ptr->grad += (n * pow(this_ptr->data, n - 1)) * res->grad;
     };
     return res;
   }
 
-  value<value_type> operator*(value<value_type> &other) {
-    auto res = value<value_type>{data * other.data, {this, &other}};
-    res.backward = [&]() {
-      grad += res.grad * other.data;
-      other.grad += res.grad * data;
+  pointer exp() {
+    auto this_ptr = create(*this);
+    auto res = create(exp(data), {this_ptr}, "exp");
+    res->backward = [res, this_ptr]() {
+      this_ptr->grad += res->data * res->grad;
     };
     return res;
-  }
-
-  value<value_type> pow(double n) {
-    auto res = value<value_type>{pow(data, n), {this}};
-    res.backward = [&]() { grad += (n * pow(data, n - 1)) * res.grad; };
-    return res;
-  }
-
-  value<value_type> operator-() {
-    auto neg_one = std::make_shared<value<value_type>>(-1);
-    childs.push_back(neg_one);
-    return *this * *neg_one;
-  }
-
-  value<value_type> operator-(value<value_type> &other) {
-    auto neg_other = std::make_shared<value<value_type>>(-other);
-    childs.push_back(neg_other);
-    return *this + *neg_other;
   }
 
   std::list<pointer> topological_sort() {
     auto visited = std::set<pointer>{};
     std::list<pointer> sorted;
+    auto this_ptr = create(*this);
 
-    if (visited.find(this) == visited.end()) {
-      visited.insert(this);
+    if (visited.find(this_ptr) == visited.end()) {
+      visited.insert(this_ptr);
       for (auto child : prev)
         sorted.splice(sorted.end(), child->topological_sort());
-      sorted.push_back(this);
+      sorted.push_back(this_ptr);
     }
     return sorted;
   }
@@ -104,7 +93,7 @@ private:
   auto trace() {
     std::set<pointer> nodes{};
     std::set<std::pair<pointer, pointer>> edges{};
-    std::function<void(pointer)> build = [&](pointer cur) {
+    std::function<void(pointer)> build = [&nodes, &edges, &build](pointer cur) {
       if (nodes.find(cur) == nodes.end()) {
         nodes.insert(cur);
         for (auto kid : cur->prev) {
@@ -113,7 +102,8 @@ private:
         }
       }
     };
-    build(this);
+    auto this_ptr = create(*this);
+    build(this_ptr);
     return std::pair{nodes, edges};
   }
 
@@ -121,16 +111,24 @@ public:
   void draw_dot(std::string filename) {
     std::fstream fs{filename};
     assert(fs.is_open());
+    fs.clear();
     auto [nodes, edges] = trace();
     fs << "digraph G {\n"
        << "rankdir=LR\n";
     for (auto n : nodes) {
-      fs << "node" << n << " [shape=record, label=\" data = " << n->data
+      fs << "node" << n.get() << " [shape=record, label=\" data = " << n->data
          << " | grad = " << n->grad << " \"];\n";
+      if (n->op != "") {
+        fs << "node" << n.get() << "_" << std::addressof(n->op)
+           << " [label = \"" << n->op << "\"];\n";
+        fs << "node" << n.get() << "_" << std::addressof(n->op) << " -> node"
+           << n.get() << ";\n";
+      }
     }
 
     for (auto [fst, snd] : edges) {
-      fs << "node" << fst << "-> node" << snd << "\n;";
+      fs << "node" << fst.get() << " -> node" << snd.get() << "_"
+         << std::addressof(snd->op) << ";\n";
     }
     fs << "}\n";
     fs.close();
@@ -138,7 +136,48 @@ public:
 };
 
 template <typename T>
-std::ostream &operator<<(std::ostream &os, const value<T> &val) {
-  return os << val.str();
+std::shared_ptr<scalar<T>> operator+(std::shared_ptr<scalar<T>> &lhs,
+                                     std::shared_ptr<scalar<T>> &rhs) {
+  auto res =
+      scalar<T>::create(lhs->data + rhs->data,
+                        std::set<std::shared_ptr<scalar<T>>>{lhs, rhs}, "+");
+  res->backward = [lhs, rhs, res]() {
+    lhs->grad += res->grad;
+    rhs->grad += res->grad;
+  };
+  return res;
 }
+
+template <typename T>
+std::shared_ptr<scalar<T>> operator*(std::shared_ptr<scalar<T>> &lhs,
+                                     std::shared_ptr<scalar<T>> &rhs) {
+  auto res =
+      scalar<T>::create(lhs->data * rhs->data,
+                        std::set<std::shared_ptr<scalar<T>>>{lhs, rhs}, "*");
+  res->backward = [lhs, rhs, res]() {
+    lhs->grad += res->grad * rhs->data;
+    rhs->grad += res->grad * lhs->data;
+  };
+  return res;
+}
+
+template <typename T>
+std::shared_ptr<scalar<T>> operator-(std::shared_ptr<scalar<T>> &scal) {
+  auto neg_one = scalar<T>::create(-1.0);
+  return scal * neg_one;
+}
+
+template <typename T>
+std::shared_ptr<scalar<T>> operator-(std::shared_ptr<scalar<T>> &lhs,
+                                     std::shared_ptr<scalar<T>> &rhs) {
+  auto neg_rhs = -rhs;
+  return lhs + neg_rhs;
+}
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os,
+                         const std::shared_ptr<scalar<T>> &val) {
+  return os << val->str();
+}
+
 } // namespace red_engine
