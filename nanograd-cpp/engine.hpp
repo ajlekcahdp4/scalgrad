@@ -46,26 +46,6 @@ public:
     return ss.str();
   }
 
-  pointer pow(double n) {
-    std::stringstream opss;
-    opss << "pow " << n;
-    auto this_ptr = create(*this);
-    auto res = create(pow(data, n), {this_ptr}, opss.str());
-    res->backward = [res, this_ptr, n]() {
-      this_ptr->grad += (n * pow(this_ptr->data, n - 1)) * res->grad;
-    };
-    return res;
-  }
-
-  pointer exp() {
-    auto this_ptr = create(*this);
-    auto res = create(exp(data), {this_ptr}, "exp");
-    res->backward = [res, this_ptr]() {
-      this_ptr->grad += res->data * res->grad;
-    };
-    return res;
-  }
-
   std::list<pointer> topological_sort() {
     auto visited = std::set<pointer>{};
     std::list<pointer> sorted;
@@ -109,9 +89,8 @@ private:
 
 public:
   void draw_dot(std::string filename) {
-    std::fstream fs{filename};
+    std::fstream fs{filename, std::ofstream::out | std::ofstream::trunc};
     assert(fs.is_open());
-    fs.clear();
     auto [nodes, edges] = trace();
     fs << "digraph G {\n"
        << "rankdir=LR\n";
@@ -136,8 +115,8 @@ public:
 };
 
 template <typename T>
-std::shared_ptr<scalar<T>> operator+(std::shared_ptr<scalar<T>> &lhs,
-                                     std::shared_ptr<scalar<T>> &rhs) {
+std::shared_ptr<scalar<T>> operator+(std::shared_ptr<scalar<T>> lhs,
+                                     std::shared_ptr<scalar<T>> rhs) {
   auto res =
       scalar<T>::create(lhs->data + rhs->data,
                         std::set<std::shared_ptr<scalar<T>>>{lhs, rhs}, "+");
@@ -149,8 +128,8 @@ std::shared_ptr<scalar<T>> operator+(std::shared_ptr<scalar<T>> &lhs,
 }
 
 template <typename T>
-std::shared_ptr<scalar<T>> operator*(std::shared_ptr<scalar<T>> &lhs,
-                                     std::shared_ptr<scalar<T>> &rhs) {
+std::shared_ptr<scalar<T>> operator*(std::shared_ptr<scalar<T>> lhs,
+                                     std::shared_ptr<scalar<T>> rhs) {
   auto res =
       scalar<T>::create(lhs->data * rhs->data,
                         std::set<std::shared_ptr<scalar<T>>>{lhs, rhs}, "*");
@@ -162,21 +141,57 @@ std::shared_ptr<scalar<T>> operator*(std::shared_ptr<scalar<T>> &lhs,
 }
 
 template <typename T>
-std::shared_ptr<scalar<T>> operator-(std::shared_ptr<scalar<T>> &scal) {
+std::shared_ptr<scalar<T>> operator-(std::shared_ptr<scalar<T>> scal) {
   auto neg_one = scalar<T>::create(-1.0);
   return scal * neg_one;
 }
 
 template <typename T>
-std::shared_ptr<scalar<T>> operator-(std::shared_ptr<scalar<T>> &lhs,
-                                     std::shared_ptr<scalar<T>> &rhs) {
+std::shared_ptr<scalar<T>> operator-(std::shared_ptr<scalar<T>> lhs,
+                                     std::shared_ptr<scalar<T>> rhs) {
   auto neg_rhs = -rhs;
   return lhs + neg_rhs;
 }
 
 template <typename T>
+std::shared_ptr<scalar<T>> operator/(std::shared_ptr<scalar<T>> lhs,
+                                     std::shared_ptr<scalar<T>> rhs) {
+  return lhs * (power(rhs, -1));
+}
+
+template <typename T>
+std::shared_ptr<scalar<T>> relu(std::shared_ptr<scalar<T>> scal) {
+  auto res =
+      scalar<T>::create((scal->data > 0 ? scal->data : 0),
+                        std::set<std::shared_ptr<scalar<T>>>{scal}, "ReLU");
+  res->backward = [res, scal]() { scal->grad += (res->data > 0) * res->grad; };
+  return res;
+}
+
+template <typename T>
+std::shared_ptr<scalar<T>> exponentiate(std::shared_ptr<scalar<T>> scal) {
+  auto res = scalar<T>::create(
+      exp(scal->data), std::set<std::shared_ptr<scalar<T>>>{scal}, "exp");
+  res->backward = [res, scal]() { scal->grad += res->data * res->grad; };
+  return res;
+}
+
+template <typename T>
+std::shared_ptr<scalar<T>> power(std::shared_ptr<scalar<T>> scal, double n) {
+  std::stringstream opss;
+  opss << "pow " << n;
+  auto res =
+      scalar<T>::create(pow(scal->data, n),
+                        std::set<std::shared_ptr<scalar<T>>>{scal}, opss.str());
+  res->backward = [res, scal, n]() {
+    scal->grad += (n * pow(scal->data, n - 1)) * res->grad;
+  };
+  return res;
+}
+
+template <typename T>
 std::ostream &operator<<(std::ostream &os,
-                         const std::shared_ptr<scalar<T>> &val) {
+                         const std::shared_ptr<scalar<T>> val) {
   return os << val->str();
 }
 
