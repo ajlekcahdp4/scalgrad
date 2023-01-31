@@ -1,1 +1,0 @@
-/usr/bin/c++ -g "CMakeFiles/scalgrad-example.dir/main.cc.o" -o scalgrad-example 
