@@ -34,7 +34,7 @@ public:
 
 private:
   std::vector<pointer> weights;
-  pointer base;
+  pointer              base;
 
 public:
   neuron(std::size_t nin) : weights{nin} {
@@ -76,8 +76,7 @@ private:
 
 public:
   layer(const std::size_t nin, const std::size_t nout) {
-    if (!nout)
-      throw std::out_of_range("Attempt to create a layer with 0 outputs.");
+    if (!nout) throw std::out_of_range("Attempt to create a layer with 0 outputs.");
     neurons.reserve(nout);
     for (auto i = 0; i < nout; ++i)
       neurons.emplace_back(nin);
@@ -86,14 +85,11 @@ public:
   // Returns number of input of neurons in the layer (all the same).
   std::size_t nin() const { return neurons[0].nin(); }
 
-  std::variant<std::vector<pointer>, pointer>
-  operator()(const std::vector<pointer> &x) const {
-    if (x.size() > nin())
-      throw std::out_of_range("Attempt to call a layer with too many inputs.");
+  std::variant<std::vector<pointer>, pointer> operator()(const std::vector<pointer> &x) const {
+    if (x.size() > nin()) throw std::out_of_range("Attempt to call a layer with too many inputs.");
     std::vector<pointer> res;
     res.reserve(neurons.size());
-    std::transform(neurons.begin(), neurons.end(), std::back_inserter(res),
-                   [&x](auto &n) { return n(x); });
+    std::transform(neurons.begin(), neurons.end(), std::back_inserter(res), [&x](auto &n) { return n(x); });
     return res.size() > 1 ? std::variant<std::vector<pointer>, pointer>(res)
                           : std::variant<std::vector<pointer>, pointer>(res[0]);
   }
@@ -120,8 +116,7 @@ private:
 
 public:
   MLP(const std::size_t nin, const std::vector<std::size_t> nouts) {
-    if (!nouts.size())
-      throw std::out_of_range("Attempt to create a MLP with 0 layers.");
+    if (!nouts.size()) throw std::out_of_range("Attempt to create a MLP with 0 layers.");
     layers.reserve(nouts.size());
     std::vector<std::size_t> sz;
     sz.reserve(nouts.size() + 1);
@@ -134,8 +129,7 @@ public:
   // Returns number of inputs of neurons in the input layer of MLP.
   std::size_t nin() const { return layers[0].nin(); }
 
-  std::variant<std::vector<pointer>, pointer>
-  operator()(std::vector<pointer> x) const {
+  std::variant<std::vector<pointer>, pointer> operator()(std::vector<pointer> x) const {
     for (auto &l : layers) {
       auto tmp = l(x);
       if (tmp.index() == 0)
