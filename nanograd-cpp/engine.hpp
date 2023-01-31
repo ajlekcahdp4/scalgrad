@@ -17,6 +17,7 @@ namespace red_engine {
 template <typename T> class scalar {
 public:
   using value_type = T;
+  using pointer = typename std::shared_ptr<scalar>;
 
   value_type data{};
   value_type grad{};
@@ -24,7 +25,6 @@ public:
 
 private:
   using self = scalar<value_type>;
-  using pointer = typename std::shared_ptr<scalar>;
 
   std::set<pointer> prev;
   std::string op = "";
