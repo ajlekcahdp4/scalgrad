@@ -1,5 +1,5 @@
 set (SCALGRAD_EXMAPLE_SOURCES
-    main.cc
+    src/main.cc
 )
 
 add_executable(scalgrad-example ${SCALGRAD_EXMAPLE_SOURCES})
